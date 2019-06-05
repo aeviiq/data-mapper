@@ -26,6 +26,7 @@
     },
     "require": {
         "php": "^7.2",
-        "ext-json": "*"
+        "ext-json": "*",
+        "aeviiq/collection": "^1.0"
     }
 }
