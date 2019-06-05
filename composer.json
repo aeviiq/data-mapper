@@ -1,0 +1,31 @@
+{
+    "name": "aeviiq/data-mapper",
+    "type": "library",
+    "description": "Data Mapper Component",
+    "keywords": [
+        "data-mapper",
+        "mapper"
+    ],
+    "homepage": "https://github.com/aeviiq/data-mapper",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Aeviiq Data Mapper contributors",
+            "homepage": "https://github.com/aeviiq/data-mapper/graphs/contributors"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Aeviiq\\DataMapper\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aeviiq\\Tests\\DataMapper\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^7.2",
+        "ext-json": "*"
+    }
+}
