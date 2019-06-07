@@ -10,6 +10,11 @@ use Aeviiq\DataMapper\Schema\XMLSchema;
 final class XMLSchemaBuilder implements Builder
 {
     /**
+     * @var string
+     */
+    private static $template = '<schema><source>%s</source><target>%s</target></schema>';
+
+    /**
      * @var PropertyGuesser
      */
     private $propertyGuesser;
@@ -21,13 +26,12 @@ final class XMLSchemaBuilder implements Builder
 
     public function build(object $source, object $target): Schema
     {
-        $xml = new \SimpleXMLElement('<schema><source>' . \get_class($source) . '</source><target>' . \get_class($target) . '</target></schema>');
+        $xml = new \SimpleXMLElement(\sprintf(static::$template, \get_class($source), \get_class($target)));
         $properties = $xml->addChild('properties');
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
-        $targetReflectionProperties = $targetReflection->getProperties();
         $sourceReflectionProperties = new ReflectionPropertyCollection($sourceReflection->getProperties());
-        foreach ($targetReflectionProperties as $targetReflectionProperty) {
+        foreach ($targetReflection->getProperties() as $targetReflectionProperty) {
             $targetPropertyName = $targetReflectionProperty->getName();
             if ($sourceReflection->hasProperty($targetPropertyName)) {
                 // Remove the property from the collection so we do not include these in the guessing.

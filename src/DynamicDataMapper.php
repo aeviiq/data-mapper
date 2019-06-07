@@ -30,7 +30,7 @@ final class DynamicDataMapper implements DataMapper
         // TODO make this recursive.
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
-        $target = is_object($target) ? $target : $targetReflection->newInstanceWithoutConstructor();
+        $target = \is_object($target) ? $target : $targetReflection->newInstanceWithoutConstructor();
         $schema = $schema ?? $this->builder->build($source, $target);
         foreach ($schema->getProperties() as $property) {
             $targetReflectionProperty = $targetReflection->getProperty($property->getTarget());
