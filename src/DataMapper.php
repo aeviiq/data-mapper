@@ -8,6 +8,10 @@ interface DataMapper
 {
     /**
      * TODO description
+     *
+     * @param string|object $target
+     *
+     * @return object The mapped target.
      */
-    public function map(object $source, object $target, ?Schema $schema = null, array $options = []): void;
+    public function map(object $source, $target, ?Schema $schema = null, array $options = []): object;
 }
