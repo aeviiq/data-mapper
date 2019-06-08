@@ -31,22 +31,38 @@ final class XMLSchemaBuilder implements Builder
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
         $sourceReflectionProperties = new ReflectionPropertyCollection($sourceReflection->getProperties());
-        foreach ($targetReflection->getProperties() as $targetReflectionProperty) {
+        $targetReflectionProperties = new ReflectionPropertyCollection($targetReflection->getProperties());
+        foreach ($targetReflectionProperties as $targetReflectionProperty) {
             $targetPropertyName = $targetReflectionProperty->getName();
-            if ($sourceReflection->hasProperty($targetPropertyName)) {
-                // Remove the property from the collection so we do not include these in the guessing.
-                $sourceReflectionProperties->removeByName($targetPropertyName);
-                $this->addPropertyToXML($properties, $targetPropertyName, $targetPropertyName);
+            if (!$sourceReflection->hasProperty($targetPropertyName)) {
                 continue;
             }
 
-            $guessed = $this->propertyGuesser->guess($sourceReflectionProperties, $targetPropertyName);
-            if (null !== $guessed && '' !== $guessed) {
-                $this->addPropertyToXML($properties, $guessed, $targetPropertyName);
-            }
+            // Remove the property from the collection so we do not include these in the guessing.
+            $this->addPropertyToXML($properties, $targetPropertyName, $targetPropertyName);
+            $sourceReflectionProperties->removeByName($targetPropertyName);
+            $targetReflectionProperties->removeElement($targetReflectionProperty);
         }
+        $this->buildGuessed($properties, $sourceReflectionProperties, $targetReflectionProperties);
 
         return new XMLSchema($xml);
+    }
+
+    private function buildGuessed(
+        \SimpleXMLElement $XMLElement,
+        ReflectionPropertyCollection $sourceReflectionProperties,
+        ReflectionPropertyCollection $targetReflectionProperties
+    ): void
+    {
+        foreach ($targetReflectionProperties as $targetReflectionProperty) {
+            $targetPropertyName = $targetReflectionProperty->getName();
+            $guessed = $this->propertyGuesser->guess($sourceReflectionProperties, $targetPropertyName);
+            if (null === $guessed || '' === $guessed) {
+                continue;
+            }
+
+            $this->addPropertyToXML($XMLElement, $guessed, $targetPropertyName);
+        }
     }
 
     private function addPropertyToXML(\SimpleXMLElement $xml, string $sourceProperty, string $targetProperty): void
