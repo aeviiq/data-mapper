@@ -52,8 +52,7 @@ final class XMLSchemaBuilder implements Builder
         \SimpleXMLElement $XMLElement,
         ReflectionPropertyCollection $sourceReflectionProperties,
         ReflectionPropertyCollection $targetReflectionProperties
-    ): void
-    {
+    ): void {
         foreach ($targetReflectionProperties as $targetReflectionProperty) {
             $targetPropertyName = $targetReflectionProperty->getName();
             $guessed = $this->propertyGuesser->guess($sourceReflectionProperties, $targetPropertyName);
