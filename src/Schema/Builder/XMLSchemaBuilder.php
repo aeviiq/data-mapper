@@ -64,9 +64,9 @@ final class XMLSchemaBuilder implements Builder
         }
     }
 
-    private function addPropertyToXML(\SimpleXMLElement $xml, string $sourceProperty, string $targetProperty): void
+    private function addPropertyToXML(\SimpleXMLElement $XMLElement, string $sourceProperty, string $targetProperty): void
     {
-        $property = $xml->addChild('property', '');
+        $property = $XMLElement->addChild('property', '');
         $property->addAttribute('source', $sourceProperty);
         $property->addAttribute('target', $targetProperty);
     }

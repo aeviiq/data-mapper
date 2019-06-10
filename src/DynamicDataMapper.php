@@ -4,6 +4,7 @@ namespace Aeviiq\DataMapper;
 
 use Aeviiq\DataMapper\Schema\Builder\Builder;
 use Aeviiq\DataMapper\Schema\Schema;
+use Aeviiq\Reflection\Property\TypeCaster;
 
 final class DynamicDataMapper implements DataMapper
 {
@@ -12,9 +13,15 @@ final class DynamicDataMapper implements DataMapper
      */
     private $builder;
 
-    public function __construct(Builder $builder)
+    /**
+     * @var TypeCaster
+     */
+    private $typeCaster;
+
+    public function __construct(Builder $builder, TypeCaster $typeCaster)
     {
         $this->builder = $builder;
+        $this->typeCaster = $typeCaster;
     }
 
     /**
@@ -39,8 +46,7 @@ final class DynamicDataMapper implements DataMapper
             $sourceReflectionProperty = $sourceReflection->getProperty($property->getSource());
             $sourceReflectionProperty->setAccessible(true);
             $value = $sourceReflectionProperty->getValue($source);
-            // TODO scalar normalization based on target
-            $targetReflectionProperty->setValue($target, $value ?? null);
+            $targetReflectionProperty->setValue($target, $this->typeCaster->cast($targetReflectionProperty, $value));
         }
 
         return $target;
