@@ -1,19 +1,3 @@
-# Data Mapper Component
+# Data Mapper Component (CONCEPT)
 
-## Why
-
-
-## Installation
-```
-composer require aeviiq/data-mapper
-```
-
-## Declaration
-```php
-
-```
-
-## Usage
-```php
-
-```
+## This component is a work in process.
