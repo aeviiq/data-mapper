@@ -26,6 +26,7 @@
     },
     "require": {
         "php": "^7.2",
+        "ext-SimpleXML": "*",
         "aeviiq/collection": "^1.0"
     }
 }
