@@ -4,7 +4,8 @@ namespace Aeviiq\DataMapper;
 
 use Aeviiq\DataMapper\Schema\Builder\Builder;
 use Aeviiq\DataMapper\Schema\Schema;
-use Aeviiq\Reflection\Property\TypeCaster;
+use Aeviiq\DataTransformer\Factory\TransformerFactory;
+use Aeviiq\DataTransformer\Reflection\Property\ReflectionPropertyHelper;
 
 final class DynamicDataMapper implements DataMapper
 {
@@ -14,14 +15,14 @@ final class DynamicDataMapper implements DataMapper
     private $builder;
 
     /**
-     * @var TypeCaster
+     * @var TransformerFactory
      */
-    private $typeCaster;
+    private $transformerFactory;
 
-    public function __construct(Builder $builder, TypeCaster $typeCaster)
+    public function __construct(Builder $builder, TransformerFactory $transformerFactory)
     {
         $this->builder = $builder;
-        $this->typeCaster = $typeCaster;
+        $this->transformerFactory = $transformerFactory;
     }
 
     /**
@@ -46,7 +47,9 @@ final class DynamicDataMapper implements DataMapper
             $sourceReflectionProperty = $sourceReflection->getProperty($property->getSource());
             $sourceReflectionProperty->setAccessible(true);
             $value = $sourceReflectionProperty->getValue($source);
-            $targetReflectionProperty->setValue($target, $this->typeCaster->cast($targetReflectionProperty, $value));
+            $propertyType = ReflectionPropertyHelper::readPropertyType($targetReflectionProperty);
+            $transformer = $this->transformerFactory->getTransformerByType($propertyType);
+            $targetReflectionProperty->setValue($target, $transformer->transform($value, $propertyType));
         }
 
         return $target;
