@@ -9,7 +9,7 @@ final class ReflectionPropertyGuesser implements PropertyGuesser
      */
     private $minimumMatchPercentage;
 
-    public function __construct(float $minimumMatchPercentage = 80.0)
+    public function __construct(float $minimumMatchPercentage = 85.0)
     {
         $this->minimumMatchPercentage = $minimumMatchPercentage;
     }
