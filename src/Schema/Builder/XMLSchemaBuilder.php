@@ -6,6 +6,7 @@ use Aeviiq\DataMapper\Reflection\PropertyGuesser;
 use Aeviiq\DataMapper\Reflection\ReflectionPropertyCollection;
 use Aeviiq\DataMapper\Schema\Schema;
 use Aeviiq\DataMapper\Schema\XMLSchema;
+use Aeviiq\DataTransformer\Reflection\Property\ReflectionPropertyHelper;
 
 final class XMLSchemaBuilder implements Builder
 {
@@ -39,12 +40,13 @@ final class XMLSchemaBuilder implements Builder
             }
 
             // Remove the property from the collection so we do not include these in the guessing.
-            $this->addPropertyToXML($properties, $targetPropertyName, $targetPropertyName);
+            $this->addPropertyToXML($properties, $targetPropertyName, $targetReflectionProperty);
             $sourceReflectionProperties->removeByName($targetPropertyName);
             $targetReflectionProperties->removeElement($targetReflectionProperty);
         }
         $this->buildGuessed($properties, $sourceReflectionProperties, $targetReflectionProperties);
 
+        // TODO implement way to get just the xml output as string, either in this builder or in the schema?
         return new XMLSchema($xml);
     }
 
@@ -60,14 +62,15 @@ final class XMLSchemaBuilder implements Builder
                 continue;
             }
 
-            $this->addPropertyToXML($XMLElement, $guessed, $targetPropertyName);
+            $this->addPropertyToXML($XMLElement, $guessed, $targetReflectionProperty);
         }
     }
 
-    private function addPropertyToXML(\SimpleXMLElement $XMLElement, string $sourceProperty, string $targetProperty): void
+    private function addPropertyToXML(\SimpleXMLElement $XMLElement, string $sourceProperty, \ReflectionProperty $targetReflectionProperty): void
     {
         $property = $XMLElement->addChild('property', '');
         $property->addAttribute('source', $sourceProperty);
-        $property->addAttribute('target', $targetProperty);
+        $property->addAttribute('target', $targetReflectionProperty->getName());
+        $property->addAttribute('type', ReflectionPropertyHelper::readPropertyType($targetReflectionProperty));
     }
 }

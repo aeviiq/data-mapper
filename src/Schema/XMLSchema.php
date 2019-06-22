@@ -50,7 +50,7 @@ final class XMLSchema implements Schema
         $this->properties = new PropertyCollection();
         foreach ($XMLElement->xpath('properties/property') as $property) {
             $attr = $property->attributes();
-            $this->properties->add(new DataProperty((string)$attr->source, (string)$attr->target));
+            $this->properties->add(new DataProperty((string)$attr->source, (string)$attr->target, (string)$attr->type));
         }
     }
 

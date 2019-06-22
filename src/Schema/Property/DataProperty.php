@@ -14,10 +14,16 @@ final class DataProperty implements Property
      */
     private $target;
 
-    public function __construct(string $source, string $target)
+    /**
+     * @var string
+     */
+    private $type;
+
+    public function __construct(string $source, string $target, string $type)
     {
         $this->source = $source;
         $this->target = $target;
+        $this->type = $type;
     }
 
     public function getSource(): string
@@ -28,5 +34,10 @@ final class DataProperty implements Property
     public function getTarget(): string
     {
         return $this->target;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
     }
 }
