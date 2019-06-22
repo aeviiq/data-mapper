@@ -2,6 +2,7 @@
 
 namespace Aeviiq\DataMapper;
 
+use Aeviiq\DataMapper\Exception\InvalidArgumentException;
 use Aeviiq\DataMapper\Schema\Builder\Builder;
 use Aeviiq\DataMapper\Schema\Schema;
 use Aeviiq\DataTransformer\Factory\TransformerFactory;
@@ -30,8 +31,11 @@ final class DynamicDataMapper implements DataMapper
      */
     public function map(object $source, $target, ?Schema $schema = null, array $options = []): object
     {
-        // TODO ensure target is either an object or string.
-        // TODO implement support for proxies.
+        if (!\is_object($target) && !\is_string($target)) {
+            throw new InvalidArgumentException(\sprintf('The $target must be an object or string representing a classname.'));
+        }
+
+        $this->loadSourceIfProxy($source);
         // TODO resolve given options.
         // TODO validate schema against source and target.
 
@@ -49,9 +53,18 @@ final class DynamicDataMapper implements DataMapper
             $value = $sourceReflectionProperty->getValue($source);
             $propertyType = ReflectionPropertyHelper::readPropertyType($targetReflectionProperty);
             $transformer = $this->transformerFactory->getTransformerByType($propertyType);
+            // TODO use $options to be able to suppress transform exceptions.
             $targetReflectionProperty->setValue($target, $transformer->transform($value, $propertyType));
         }
 
         return $target;
+    }
+
+    private function loadSourceIfProxy(object $source): void
+    {
+        $proxyClass = 'Doctrine\ORM\Proxy\Proxy';
+        if ($source instanceof $proxyClass) {
+            $source->__load();
+        }
     }
 }
