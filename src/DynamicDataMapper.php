@@ -6,7 +6,6 @@ use Aeviiq\DataMapper\Exception\InvalidArgumentException;
 use Aeviiq\DataMapper\Schema\Builder\Builder;
 use Aeviiq\DataMapper\Schema\Schema;
 use Aeviiq\DataTransformer\Factory\TransformerFactory;
-use Aeviiq\DataTransformer\Reflection\Property\ReflectionPropertyHelper;
 
 final class DynamicDataMapper implements DataMapper
 {
@@ -36,14 +35,14 @@ final class DynamicDataMapper implements DataMapper
         }
 
         $this->loadSourceIfProxy($source);
-        // TODO resolve given options.
-        // TODO validate schema against source and target.
 
+        // TODO resolve given options.
         // TODO make this recursive.
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
         $target = \is_object($target) ? $target : $targetReflection->newInstanceWithoutConstructor();
         $schema = $schema ?? $this->builder->build($source, $target);
+        $this->validateSchema($schema, $source, $target);
         foreach ($schema->getProperties() as $property) {
             $targetReflectionProperty = $targetReflection->getProperty($property->getTarget());
             $targetReflectionProperty->setAccessible(true);
@@ -51,13 +50,29 @@ final class DynamicDataMapper implements DataMapper
             $sourceReflectionProperty = $sourceReflection->getProperty($property->getSource());
             $sourceReflectionProperty->setAccessible(true);
             $value = $sourceReflectionProperty->getValue($source);
-            $propertyType = ReflectionPropertyHelper::readPropertyType($targetReflectionProperty);
-            $transformer = $this->transformerFactory->getTransformerByType($propertyType);
+            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
             // TODO use $options to be able to suppress transform exceptions.
-            $targetReflectionProperty->setValue($target, $transformer->transform($value, $propertyType));
+            $targetReflectionProperty->setValue($target, $transformer->transform($value, $property->getType()));
         }
 
         return $target;
+    }
+
+    private function resolveOptions(array $options): void
+    {
+        // TODO think of more options to support.
+
+        // TODO option to ignore transformation exceptions, and set the value on null instead.
+        // TODO option to set value on null if missing or error.
+        // TODO option to override existing data. If it is already set, don't override.
+
+    }
+
+    private function validateSchema(Schema $schema, object $source, object $target): void
+    {
+        if ($schema->getSourceClass() !== \get_class($source) || $schema->getTargetClass() !== \get_class($target)) {
+            throw new InvalidArgumentException(\sprintf('The schema does not match the source and target. Did you use the correct schema?'));
+        }
     }
 
     private function loadSourceIfProxy(object $source): void
