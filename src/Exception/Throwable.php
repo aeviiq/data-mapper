@@ -2,6 +2,6 @@
 
 namespace Aeviiq\DataMapper\Exception;
 
-interface Exception extends \Throwable
+interface Throwable extends \Throwable
 {
 }
