@@ -4,11 +4,19 @@ namespace Aeviiq\DataMapper;
 
 use Aeviiq\DataMapper\Exception\InvalidArgumentException;
 use Aeviiq\DataMapper\Schema\Builder\Builder;
+use Aeviiq\DataMapper\Schema\Property\Property;
 use Aeviiq\DataMapper\Schema\Schema;
+use Aeviiq\DataTransformer\Exception\Throwable;
 use Aeviiq\DataTransformer\Factory\TransformerFactory;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class DynamicDataMapper implements DataMapper
 {
+    private static $defaultOptions = [
+        'suppress_transformation_exceptions' => false,
+        'override_existing_values' => true,
+    ];
+
     /**
      * @var Builder
      */
@@ -19,10 +27,17 @@ final class DynamicDataMapper implements DataMapper
      */
     private $transformerFactory;
 
-    public function __construct(Builder $builder, TransformerFactory $transformerFactory)
+    /**
+     * @var OptionsResolver
+     */
+    private $optionsResolver;
+
+    public function __construct(Builder $builder, TransformerFactory $transformerFactory, OptionsResolver $optionsResolver)
     {
         $this->builder = $builder;
         $this->transformerFactory = $transformerFactory;
+        $this->optionsResolver = $optionsResolver;
+        $this->configureOptions();
     }
 
     /**
@@ -35,8 +50,8 @@ final class DynamicDataMapper implements DataMapper
         }
 
         $this->loadSourceIfProxy($source);
+        $options = $this->optionsResolver->resolve($options);
 
-        // TODO resolve given options.
         // TODO make this recursive.
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
@@ -46,26 +61,49 @@ final class DynamicDataMapper implements DataMapper
         foreach ($schema->getProperties() as $property) {
             $targetReflectionProperty = $targetReflection->getProperty($property->getTarget());
             $targetReflectionProperty->setAccessible(true);
-
             $sourceReflectionProperty = $sourceReflection->getProperty($property->getSource());
             $sourceReflectionProperty->setAccessible(true);
-            $value = $sourceReflectionProperty->getValue($source);
-            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
-            // TODO use $options to be able to suppress transform exceptions.
-            $targetReflectionProperty->setValue($target, $transformer->transform($value, $property->getType()));
+
+            $currentTargetValue = $targetReflectionProperty->getValue($target);
+            $sourceValue = $sourceReflectionProperty->getValue($source);
+
+            if (!$options['override_existing_values'] && null !== $currentTargetValue && '' !== $currentTargetValue) {
+                continue;
+            }
+
+            $targetReflectionProperty->setValue($target, $this->getTransformedValue($property, $sourceValue, $options['suppress_transformation_exceptions']));
         }
 
         return $target;
     }
 
-    private function resolveOptions(array $options): void
+    private function getTransformedValue(Property $property, $value, bool $suppressException)
+    {
+        try {
+            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
+            return $transformer->transform($value);
+        } catch (Throwable $e) {
+            if (!$suppressException) {
+                throw $e;
+            }
+
+            return null;
+        }
+    }
+
+    private function configureOptions(): void
     {
         // TODO think of more options to support.
-
-        // TODO option to ignore transformation exceptions, and set the value on null instead.
         // TODO option to set value on null if missing or error.
-        // TODO option to override existing data. If it is already set, don't override.
+        $this->optionsResolver
+            ->setRequired('suppress_transformation_exceptions')
+            ->setAllowedTypes('suppress_transformation_exceptions', 'bool');
 
+        $this->optionsResolver
+            ->setRequired('override_existing_values')
+            ->setAllowedTypes('override_existing_values', 'bool');
+
+        $this->optionsResolver->setDefaults(static::$defaultOptions);
     }
 
     private function validateSchema(Schema $schema, object $source, object $target): void
