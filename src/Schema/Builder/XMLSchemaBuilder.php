@@ -6,7 +6,7 @@ use Aeviiq\DataMapper\Reflection\PropertyGuesser;
 use Aeviiq\DataMapper\Reflection\ReflectionPropertyCollection;
 use Aeviiq\DataMapper\Schema\Schema;
 use Aeviiq\DataMapper\Schema\XMLSchema;
-use Aeviiq\DataTransformer\Reflection\Property\ReflectionPropertyHelper;
+use Aeviiq\Reflection\ReflectionHelper;
 
 final class XMLSchemaBuilder implements Builder
 {
@@ -71,6 +71,6 @@ final class XMLSchemaBuilder implements Builder
         $property = $XMLElement->addChild('property', '');
         $property->addAttribute('source', $sourceProperty);
         $property->addAttribute('target', $targetReflectionProperty->getName());
-        $property->addAttribute('type', ReflectionPropertyHelper::readPropertyType($targetReflectionProperty));
+        $property->addAttribute('type', ReflectionHelper::getPropertyType($targetReflectionProperty));
     }
 }
