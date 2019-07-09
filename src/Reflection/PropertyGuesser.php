@@ -2,14 +2,34 @@
 
 namespace Aeviiq\DataMapper\Reflection;
 
-interface PropertyGuesser
+final class PropertyGuesser implements PropertyGuesserInterface
 {
     /**
-     * TODO decide which of the algoritms to use.
-     * levenshtein, SMG, jaro, similar, etc.
-     * TODO take type into account.
-     *
-     * TODO description
+     * @var float
      */
-    public function guess(ReflectionPropertyCollection $properties, string $property): ?string;
+    private $minimumMatchPercentage;
+
+    public function __construct(float $minimumMatchPercentage = 85.0)
+    {
+        $this->minimumMatchPercentage = $minimumMatchPercentage;
+    }
+
+    public function guess(ReflectionPropertyCollection $properties, string $property): ?string
+    {
+        $percentage = 0.0;
+        $result = null;
+        // TODO refactor to allow for multiple algoritms
+        foreach ($properties as $reflectionProperty) {
+            $matchCount = \similar_text($reflectionProperty->getName(), $property, $currentPercentage);
+            if ($currentPercentage < $percentage || $currentPercentage < $this->minimumMatchPercentage) {
+                continue;
+            }
+            // TODO take match count into consideration?
+            $percentage = $currentPercentage;
+
+            $result = $reflectionProperty->getName();
+        }
+
+        return $result;
+    }
 }

@@ -4,7 +4,7 @@ namespace Aeviiq\DataMapper\Schema;
 
 use Aeviiq\DataMapper\Schema\Property\PropertyCollection;
 
-interface Schema
+interface SchemaInterface
 {
     public function getSourceClass(): string;
 

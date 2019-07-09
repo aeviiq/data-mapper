@@ -2,7 +2,7 @@
 
 namespace Aeviiq\DataMapper\Schema\Property;
 
-interface Property
+interface PropertyInterface
 {
     public function getSource(): string;
 

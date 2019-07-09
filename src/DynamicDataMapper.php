@@ -3,14 +3,14 @@
 namespace Aeviiq\DataMapper;
 
 use Aeviiq\DataMapper\Exception\InvalidArgumentException;
-use Aeviiq\DataMapper\Schema\Builder\Builder;
-use Aeviiq\DataMapper\Schema\Property\Property;
-use Aeviiq\DataMapper\Schema\Schema;
-use Aeviiq\DataTransformer\Exception\Throwable;
+use Aeviiq\DataMapper\Schema\Builder\BuilderInterface;
+use Aeviiq\DataMapper\Schema\Property\PropertyInterface;
+use Aeviiq\DataMapper\Schema\SchemaInterface;
+use Aeviiq\DataTransformer\Exception\ExceptionInterface;
 use Aeviiq\DataTransformer\Factory\TransformerFactory;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
-final class DynamicDataMapper implements DataMapper
+final class DynamicDataMapper implements DataMapperInterface
 {
     private static $defaultOptions = [
         'suppress_transformation_exceptions' => false,
@@ -18,7 +18,7 @@ final class DynamicDataMapper implements DataMapper
     ];
 
     /**
-     * @var Builder
+     * @var BuilderInterface
      */
     private $builder;
 
@@ -32,7 +32,7 @@ final class DynamicDataMapper implements DataMapper
      */
     private $optionsResolver;
 
-    public function __construct(Builder $builder, TransformerFactory $transformerFactory, OptionsResolver $optionsResolver)
+    public function __construct(BuilderInterface $builder, TransformerFactory $transformerFactory, OptionsResolver $optionsResolver)
     {
         $this->builder = $builder;
         $this->transformerFactory = $transformerFactory;
@@ -43,7 +43,7 @@ final class DynamicDataMapper implements DataMapper
     /**
      * @inheritdoc
      */
-    public function map(object $source, $target, ?Schema $schema = null, array $options = []): object
+    public function map(object $source, $target, ?SchemaInterface $schema = null, array $options = []): object
     {
         if (!\is_object($target) && !\is_string($target)) {
             throw new InvalidArgumentException(\sprintf('The $target must be an object or string representing a classname.'));
@@ -77,12 +77,12 @@ final class DynamicDataMapper implements DataMapper
         return $target;
     }
 
-    private function getTransformedValue(Property $property, $value, bool $suppressException)
+    private function getTransformedValue(PropertyInterface $property, $value, bool $suppressException)
     {
         try {
             $transformer = $this->transformerFactory->getTransformerByType($property->getType());
             return $transformer->transform($value);
-        } catch (Throwable $e) {
+        } catch (ExceptionInterface $e) {
             if (!$suppressException) {
                 throw $e;
             }
@@ -106,7 +106,7 @@ final class DynamicDataMapper implements DataMapper
         $this->optionsResolver->setDefaults(static::$defaultOptions);
     }
 
-    private function validateSchema(Schema $schema, object $source, object $target): void
+    private function validateSchema(SchemaInterface $schema, object $source, object $target): void
     {
         if ($schema->getSourceClass() !== \get_class($source) || $schema->getTargetClass() !== \get_class($target)) {
             throw new InvalidArgumentException(\sprintf('The schema does not match the source and target. Did you use the correct schema?'));

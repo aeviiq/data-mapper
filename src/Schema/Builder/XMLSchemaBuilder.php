@@ -4,11 +4,11 @@ namespace Aeviiq\DataMapper\Schema\Builder;
 
 use Aeviiq\DataMapper\Reflection\PropertyGuesser;
 use Aeviiq\DataMapper\Reflection\ReflectionPropertyCollection;
-use Aeviiq\DataMapper\Schema\Schema;
+use Aeviiq\DataMapper\Schema\SchemaInterface;
 use Aeviiq\DataMapper\Schema\XMLSchema;
 use Aeviiq\Reflection\ReflectionHelper;
 
-final class XMLSchemaBuilder implements Builder
+final class XMLSchemaBuilder implements BuilderInterface
 {
     /**
      * @var string
@@ -25,7 +25,7 @@ final class XMLSchemaBuilder implements Builder
         $this->propertyGuesser = $propertyGuesser;
     }
 
-    public function build(object $source, object $target): Schema
+    public function build(object $source, object $target): SchemaInterface
     {
         $xml = new \SimpleXMLElement(\sprintf(static::$template, \get_class($source), \get_class($target)));
         $properties = $xml->addChild('properties');

@@ -2,7 +2,7 @@
 
 namespace Aeviiq\DataMapper\Schema\Property;
 
-final class DataProperty implements Property
+final class DataProperty implements PropertyInterface
 {
     /**
      * @var string

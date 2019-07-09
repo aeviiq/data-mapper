@@ -2,9 +2,9 @@
 
 namespace Aeviiq\DataMapper;
 
-use Aeviiq\DataMapper\Schema\Schema;
+use Aeviiq\DataMapper\Schema\SchemaInterface;
 
-interface DataMapper
+interface DataMapperInterface
 {
     /**
      * TODO description
@@ -13,5 +13,5 @@ interface DataMapper
      *
      * @return object The mapped target.
      */
-    public function map(object $source, $target, ?Schema $schema = null, array $options = []): object;
+    public function map(object $source, $target, ?SchemaInterface $schema = null, array $options = []): object;
 }

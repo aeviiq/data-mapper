@@ -5,7 +5,7 @@ namespace Aeviiq\DataMapper\Schema;
 use Aeviiq\DataMapper\Schema\Property\DataProperty;
 use Aeviiq\DataMapper\Schema\Property\PropertyCollection;
 
-final class XMLSchema implements Schema
+final class XMLSchema implements SchemaInterface
 {
     /**
      * @var string

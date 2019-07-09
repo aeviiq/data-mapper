@@ -5,14 +5,14 @@ namespace Aeviiq\DataMapper\Schema\Property;
 use Aeviiq\Collection\ObjectCollection;
 
 /**
- * @method \ArrayIterator|Property[] getIterator
- * @method Property|null first
- * @method Property|null last
+ * @method \ArrayIterator|PropertyInterface[] getIterator
+ * @method PropertyInterface|null first
+ * @method PropertyInterface|null last
  */
 final class PropertyCollection extends ObjectCollection
 {
     protected function allowedInstance(): string
     {
-        return Property::class;
+        return PropertyInterface::class;
     }
 }
