@@ -15,7 +15,7 @@ final class ReflectionPropertyCollection extends AbstractObjectCollection
     {
         foreach ($this as $element) {
             if ($element->getName() === $name) {
-                $this->removeElement($element);
+                $this->remove($element);
                 break;
             }
         }

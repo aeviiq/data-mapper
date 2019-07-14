@@ -50,7 +50,7 @@ final class XMLSchema implements SchemaInterface
         $this->properties = new PropertyCollection();
         foreach ($XMLElement->xpath('properties/property') as $property) {
             $attr = $property->attributes();
-            $this->properties->add(new DataProperty((string)$attr->source, (string)$attr->target, (string)$attr->type));
+            $this->properties->append(new DataProperty((string)$attr->source, (string)$attr->target, (string)$attr->type));
         }
     }
 
