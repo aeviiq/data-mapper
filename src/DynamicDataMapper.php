@@ -9,6 +9,8 @@ use Aeviiq\DataMapper\Schema\SchemaInterface;
 use Aeviiq\DataTransformer\Exception\ExceptionInterface;
 use Aeviiq\DataTransformer\Factory\TransformerFactory;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\PropertyAccess\PropertyAccess;
+use Symfony\Component\PropertyAccess\PropertyAccessor;
 
 final class DynamicDataMapper implements DataMapperInterface
 {
@@ -41,12 +43,18 @@ final class DynamicDataMapper implements DataMapperInterface
      */
     private $optionsResolver;
 
+    /**
+     * @var PropertyAccessor
+     */
+    private $propertyAccessor;
+
     public function __construct(BuilderInterface $builder, TransformerFactory $transformerFactory, OptionsResolver $optionsResolver)
     {
         $this->builder = $builder;
         $this->transformerFactory = $transformerFactory;
         $this->optionsResolver = $optionsResolver;
         $this->configureOptions();
+        $this->propertyAccessor = PropertyAccess::createPropertyAccessor();
     }
 
     /**
@@ -61,32 +69,60 @@ final class DynamicDataMapper implements DataMapperInterface
         // TODO make this recursive.
 
         $this->loadSourceIfProxy($source);
-        $options = $this->optionsResolver->resolve($options);
-
-        $sourceReflection = new \ReflectionClass($source);
-        $targetReflection = new \ReflectionClass($target);
-        $target = \is_object($target) ? $target : $targetReflection->newInstanceWithoutConstructor();
-
-        $schema = $schema ?? $this->createSchema($source, $target, $options['memorize_schema']);
-        $this->validateSchema($schema, $source, $target);
-
+        // TODO implement the resolved options.
+//        $options = $this->optionsResolver->resolve($options);
+        $target = $this->resolveTarget($target);
+        $schema = $this->resolveSchema($schema, $source, $target);
         foreach ($schema->getProperties() as $property) {
-            $targetReflectionProperty = $targetReflection->getProperty($property->getTarget());
-            $targetReflectionProperty->setAccessible(true);
-            $sourceReflectionProperty = $sourceReflection->getProperty($property->getSource());
-            $sourceReflectionProperty->setAccessible(true);
-
-            $currentTargetValue = $targetReflectionProperty->getValue($target);
-            $sourceValue = $sourceReflectionProperty->getValue($source);
-
-            if (!$options['override_existing_values'] && null !== $currentTargetValue && '' !== $currentTargetValue) {
-                continue;
-            }
-
-            $targetReflectionProperty->setValue($target, $this->getTransformedValue($property, $sourceValue, $options['suppress_transformation_exceptions']));
+            $this->mapProperty($source, $target, $property);
         }
 
         return $target;
+    }
+
+    private function mapProperty(object $source, object $target, PropertyInterface $property): void
+    {
+        // TODO implement 'override_existing_values'
+        $this->propertyAccessor->setValue($target, $property->getTarget(), $this->getTransformedValue($source, $property));
+    }
+
+    private function getTransformedValue(object $source, PropertyInterface $property /*, bool $suppressException */)
+    {
+        try {
+            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
+            return $transformer->transform($this->propertyAccessor->getValue($source, $property->getSource()));
+        } catch (ExceptionInterface $e) {
+            // TODO implement 'suppress_transformation_exceptions'
+//            if (!$suppressException) {
+//                throw $e;
+//            }
+
+            return null;
+        }
+    }
+
+    private function resolveSchema(?SchemaInterface $schema, object $source, object $target): SchemaInterface
+    {
+        $schema = $schema ?? $this->createSchema($source, $target, true);
+        $this->validateSchema($schema, $source, $target);
+
+        return $schema;
+    }
+
+    /**
+     * @param object|string $target
+     */
+    private function resolveTarget($target): object
+    {
+        if (\is_object($target)) {
+            return $target;
+        }
+
+        if (\is_string($target) && \class_exists($target)) {
+            return (new \ReflectionClass($target))->newInstanceWithoutConstructor();
+        }
+
+        throw new InvalidArgumentException(\sprintf('The target must be an object or a string representing an existing class.'));
     }
 
     private function createSchema(object $source, object $target, bool $memorize): SchemaInterface
@@ -102,20 +138,6 @@ final class DynamicDataMapper implements DataMapperInterface
         }
 
         return $schema;
-    }
-
-    private function getTransformedValue(PropertyInterface $property, $value, bool $suppressException)
-    {
-        try {
-            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
-            return $transformer->transform($value);
-        } catch (ExceptionInterface $e) {
-            if (!$suppressException) {
-                throw $e;
-            }
-
-            return null;
-        }
     }
 
     private function configureOptions(): void
