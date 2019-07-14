@@ -12,10 +12,19 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class DynamicDataMapper implements DataMapperInterface
 {
+    /**
+     * @var mixed[]
+     */
     private static $defaultOptions = [
         'suppress_transformation_exceptions' => false,
         'override_existing_values' => true,
+        'memorize_schema' => true,
     ];
+
+    /**
+     * @var string[]
+     */
+    private static $memorizedSchemas = [];
 
     /**
      * @var BuilderInterface
@@ -46,18 +55,21 @@ final class DynamicDataMapper implements DataMapperInterface
     public function map(object $source, $target, ?SchemaInterface $schema = null, array $options = []): object
     {
         if (!\is_object($target) && !\is_string($target)) {
-            throw new InvalidArgumentException(\sprintf('The $target must be an object or string representing a classname.'));
+            throw new InvalidArgumentException(\sprintf('The $target must be an object or a string representing an existing class.'));
         }
+
+        // TODO make this recursive.
 
         $this->loadSourceIfProxy($source);
         $options = $this->optionsResolver->resolve($options);
 
-        // TODO make this recursive.
         $sourceReflection = new \ReflectionClass($source);
         $targetReflection = new \ReflectionClass($target);
         $target = \is_object($target) ? $target : $targetReflection->newInstanceWithoutConstructor();
-        $schema = $schema ?? $this->builder->build($source, $target);
+
+        $schema = $schema ?? $this->createSchema($source, $target, $options['memorize_schema']);
         $this->validateSchema($schema, $source, $target);
+
         foreach ($schema->getProperties() as $property) {
             $targetReflectionProperty = $targetReflection->getProperty($property->getTarget());
             $targetReflectionProperty->setAccessible(true);
@@ -75,6 +87,21 @@ final class DynamicDataMapper implements DataMapperInterface
         }
 
         return $target;
+    }
+
+    private function createSchema(object $source, object $target, bool $memorize): SchemaInterface
+    {
+        $hash = \md5(\get_class($source) . \get_class($target));
+        if (isset(static::$memorizedSchemas[$hash])) {
+            return static::$memorizedSchemas[$hash];
+        }
+
+        $schema = $this->builder->build($source, $target);
+        if ($memorize) {
+            static::$memorizedSchemas[$hash] = $schema;
+        }
+
+        return $schema;
     }
 
     private function getTransformedValue(PropertyInterface $property, $value, bool $suppressException)
@@ -102,6 +129,10 @@ final class DynamicDataMapper implements DataMapperInterface
         $this->optionsResolver
             ->setRequired('override_existing_values')
             ->setAllowedTypes('override_existing_values', 'bool');
+
+        $this->optionsResolver
+            ->setRequired('memorize_schema')
+            ->setAllowedTypes('memorize_schema', 'bool');
 
         $this->optionsResolver->setDefaults(static::$defaultOptions);
     }
