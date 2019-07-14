@@ -2,14 +2,14 @@
 
 namespace Aeviiq\DataMapper\Reflection;
 
-use Aeviiq\Collection\ObjectCollection;
+use Aeviiq\Collection\AbstractObjectCollection;
 
 /**
  * @method \ArrayIterator|\ReflectionProperty[] getIterator
  * @method \ReflectionProperty|null first
  * @method \ReflectionProperty|null last
  */
-final class ReflectionPropertyCollection extends ObjectCollection
+final class ReflectionPropertyCollection extends AbstractObjectCollection
 {
     public function removeByName(string $name): void
     {

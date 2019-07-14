@@ -27,7 +27,7 @@
     "require": {
         "php": "^7.2",
         "ext-SimpleXML": "*",
-        "aeviiq/collection": "^1.0",
+        "aeviiq/collection": "dev-master",
         "symfony/options-resolver": "^3.4|^4.3"
     }
 }
