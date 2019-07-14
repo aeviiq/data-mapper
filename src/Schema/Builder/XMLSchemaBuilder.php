@@ -42,7 +42,7 @@ final class XMLSchemaBuilder implements BuilderInterface
             // Remove the property from the collection so we do not include these in the guessing.
             $this->addPropertyToXML($properties, $targetPropertyName, $targetReflectionProperty);
             $sourceReflectionProperties->removeByName($targetPropertyName);
-            $targetReflectionProperties->removeElement($targetReflectionProperty);
+            $targetReflectionProperties->remove($targetReflectionProperty);
         }
         $this->buildGuessed($properties, $sourceReflectionProperties, $targetReflectionProperties);
 
