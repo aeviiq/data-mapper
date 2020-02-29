@@ -1,176 +1,153 @@
-<?php declare(strict_types = 1);
+<?php declare(strict_types=1);
 
 namespace Aeviiq\DataMapper;
 
 use Aeviiq\DataMapper\Exception\InvalidArgumentException;
-use Aeviiq\DataMapper\Schema\Builder\BuilderInterface;
-use Aeviiq\DataMapper\Schema\Property\PropertyInterface;
-use Aeviiq\DataMapper\Schema\SchemaInterface;
-use Aeviiq\DataTransformer\Exception\ExceptionInterface;
-use Aeviiq\DataTransformer\Factory\TransformerFactory;
-use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\PropertyAccess\PropertyAccess;
-use Symfony\Component\PropertyAccess\PropertyAccessor;
+use Aeviiq\DataMapper\Exception\LogicException;
+use Aeviiq\DataMapper\Exception\RuntimeException;
+use Aeviiq\DataMapper\Exception\UnexpectedValueException;
+use Aeviiq\SafeCast\SafeCast;
 
-final class DynamicDataMapper implements DataMapperInterface
+final class DynamicDataMapper
 {
     /**
-     * @var mixed[]
+     * Current implementation is mainly build to map value objects.
+     * e.g. A form model with nullable values to a strict read-only data object.
+     *
+     * When strict mode is enabled, most native types will be casted to their expected type,
+     * using the SafeCast component to ensure there are no unwanted side effects that regular type casting could have.
+     *
+     * @param string|object $target
+     *
+     * @return object The target object with the mapped values
+     *
+     * @throws LogicException When the target does not have the same properties as the source.
      */
-    private static $defaultOptions = [
-        'suppress_transformation_exceptions' => false,
-        'override_existing_values' => true,
-        'memorize_schema' => true,
-    ];
-
-    /**
-     * @var string[]
-     */
-    private static $memorizedSchemas = [];
-
-    /**
-     * @var BuilderInterface
-     */
-    private $builder;
-
-    /**
-     * @var TransformerFactory
-     */
-    private $transformerFactory;
-
-    /**
-     * @var OptionsResolver
-     */
-    private $optionsResolver;
-
-    /**
-     * @var PropertyAccessor
-     */
-    private $propertyAccessor;
-
-    public function __construct(BuilderInterface $builder, TransformerFactory $transformerFactory, OptionsResolver $optionsResolver)
-    {
-        $this->builder = $builder;
-        $this->transformerFactory = $transformerFactory;
-        $this->optionsResolver = $optionsResolver;
-        $this->configureOptions();
-        $this->propertyAccessor = PropertyAccess::createPropertyAccessor();
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function map(object $source, $target, ?SchemaInterface $schema = null, array $options = []): object
-    {
-        if (!\is_object($target) && !\is_string($target)) {
-            throw new InvalidArgumentException(\sprintf('The $target must be an object or a string representing an existing class.'));
-        }
-
-        // TODO make this recursive.
-
-        $this->loadSourceIfProxy($source);
-        // TODO implement the resolved options.
-//        $options = $this->optionsResolver->resolve($options);
-        $target = $this->resolveTarget($target);
-        $schema = $this->resolveSchema($schema, $source, $target);
-        foreach ($schema->getProperties() as $property) {
-            $this->mapProperty($source, $target, $property);
-        }
-
-        return $target;
-    }
-
-    private function mapProperty(object $source, object $target, PropertyInterface $property): void
-    {
-        // TODO implement 'override_existing_values'
-        $this->propertyAccessor->setValue($target, $property->getTarget(), $this->getTransformedValue($source, $property));
-    }
-
-    private function getTransformedValue(object $source, PropertyInterface $property /*, bool $suppressException */)
+    public static function map(object $source, string $target, bool $strict = true): object
     {
         try {
-            $transformer = $this->transformerFactory->getTransformerByType($property->getType());
-            return $transformer->transform($this->propertyAccessor->getValue($source, $property->getSource()));
-        } catch (ExceptionInterface $e) {
-            // TODO implement 'suppress_transformation_exceptions'
-//            if (!$suppressException) {
-//                throw $e;
-//            }
+            $sourceReflection = new \ReflectionObject($source);
+            $targetReflection = self::createReflectionClass($target);
+            $result = $targetReflection->newInstanceWithoutConstructor();
+            foreach ($sourceReflection->getProperties() as $sourceReflectionProperty) {
+                $sourceReflectionProperty->setAccessible(true);
+                $sourceValue = $sourceReflectionProperty->getValue($source);
+                $sourceReflectionPropertyName = $sourceReflectionProperty->getName();
+                if (!$targetReflection->hasProperty($sourceReflectionPropertyName)) {
+                    throw new LogicException(
+                        \sprintf(
+                            'Property "%s" does not exist in class "%s". Ensure the source and target have the same property names.',
+                            $sourceReflectionPropertyName,
+                            $targetReflection->getName()
+                        )
+                    );
+                }
 
-            return null;
+                if ($strict) {
+                    // Could be replaced with property reflection in PHP >= 7.4
+                    $reflectionType = self::getReflectionType(self::getReflectionMethod($sourceReflectionPropertyName, $targetReflection));
+                    if (null === $sourceValue && !$reflectionType->allowsNull()) {
+                        throw new LogicException(
+                            \sprintf(
+                                'Property "%s" of source "%s" cannot be null.',
+                                $sourceReflectionPropertyName,
+                                $sourceReflection->getName()
+                            )
+                        );
+                    }
+
+                    $sourceValue = self::cast($reflectionType, $sourceValue);
+                }
+
+                $targetProperty = $targetReflection->getProperty($sourceReflectionPropertyName);
+                $targetProperty->setAccessible(true);
+                $targetProperty->setValue($result, $sourceValue);
+            }
+
+            return $result;
+        } catch (\ReflectionException $e) {
+            throw new RuntimeException(
+                \sprintf('Unable to map object "%s" to "%s". "%s"',
+                    \get_class($source),
+                    \is_object($target) ? \get_class($target) : $target,
+                    $e->getMessage()
+                ), 0, $e);
         }
-    }
-
-    private function resolveSchema(?SchemaInterface $schema, object $source, object $target): SchemaInterface
-    {
-        $schema = $schema ?? $this->createSchema($source, $target, true);
-        $this->validateSchema($schema, $source, $target);
-
-        return $schema;
     }
 
     /**
-     * @param object|string $target
+     * @param mixed $value
+     *
+     * @return mixed
+     *
+     * @throws UnexpectedValueException When the value is an unsupported type.
      */
-    private function resolveTarget($target): object
+    private static function cast(\ReflectionType $reflectionType, $value)
     {
+        switch (true) {
+            case (null === $value):
+            case (\is_resource($value)):
+            case (\is_array($value)):
+            case (\is_object($value)):
+                return $value;
+            case ('bool' === (string)$reflectionType):
+                return SafeCast::toBool($value);
+            case ('string' === (string)$reflectionType):
+                return SafeCast::toString($value);
+            case ('int' === (string)$reflectionType):
+                return SafeCast::toInt($value);
+            case ('float' === (string)$reflectionType):
+                return SafeCast::toFloat($value);
+            default:
+                throw new UnexpectedValueException('Unsupported value type.');
+        }
+    }
+
+    private static function getReflectionMethod(string $propertyName, \ReflectionClass $targetReflection): \ReflectionMethod
+    {
+        if ($targetReflection->hasMethod($methodName = \sprintf('get%s', $propertyName))) {
+            return $targetReflection->getMethod($methodName);
+        }
+
+        if ($targetReflection->hasMethod($methodName = \sprintf('is%s', $propertyName))) {
+            return $targetReflection->getMethod($methodName);
+        }
+
+        if ($targetReflection->hasMethod($methodName = \sprintf('has%s', $propertyName))) {
+            return $targetReflection->getMethod($methodName);
+        }
+
+        throw new LogicException(
+            \sprintf(
+                'In strict mode, a read-only object must have atleast a public get|has|is method for each of it\'s properties. No method found for property "%s".',
+                $propertyName
+            )
+        );
+    }
+
+    private static function getReflectionType(\ReflectionMethod $reflectionMethod): \ReflectionType
+    {
+        if (null !== $returnType = $reflectionMethod->getReturnType()) {
+            return $returnType;
+        }
+
+        throw new LogicException(\sprintf('A simple read-only object must have return types for it\'s read methods.'));
+    }
+
+    private static function createReflectionClass($target): \ReflectionClass
+    {
+        if (\is_string($target)) {
+            if (!\class_exists($target)) {
+                throw new InvalidArgumentException(\sprintf('The target must be an existing class name. "%s" does not exist.', $target));
+            }
+
+            return new \ReflectionClass($target);
+        }
+
         if (\is_object($target)) {
-            return $target;
+            return new \ReflectionObject($target);
         }
 
-        if (\is_string($target) && \class_exists($target)) {
-            return (new \ReflectionClass($target))->newInstanceWithoutConstructor();
-        }
-
-        throw new InvalidArgumentException(\sprintf('The target must be an object or a string representing an existing class.'));
-    }
-
-    private function createSchema(object $source, object $target, bool $memorize): SchemaInterface
-    {
-        $hash = \md5(\get_class($source) . \get_class($target));
-        if (isset(static::$memorizedSchemas[$hash])) {
-            return static::$memorizedSchemas[$hash];
-        }
-
-        $schema = $this->builder->build($source, $target);
-        if ($memorize) {
-            static::$memorizedSchemas[$hash] = $schema;
-        }
-
-        return $schema;
-    }
-
-    private function configureOptions(): void
-    {
-        // TODO think of more options to support.
-        // TODO option to set value on null if missing or error.
-        $this->optionsResolver
-            ->setRequired('suppress_transformation_exceptions')
-            ->setAllowedTypes('suppress_transformation_exceptions', 'bool');
-
-        $this->optionsResolver
-            ->setRequired('override_existing_values')
-            ->setAllowedTypes('override_existing_values', 'bool');
-
-        $this->optionsResolver
-            ->setRequired('memorize_schema')
-            ->setAllowedTypes('memorize_schema', 'bool');
-
-        $this->optionsResolver->setDefaults(static::$defaultOptions);
-    }
-
-    private function validateSchema(SchemaInterface $schema, object $source, object $target): void
-    {
-        if ($schema->getSourceClass() !== \get_class($source) || $schema->getTargetClass() !== \get_class($target)) {
-            throw new InvalidArgumentException(\sprintf('The schema does not match the source and target. Did you use the correct schema?'));
-        }
-    }
-
-    private function loadSourceIfProxy(object $source): void
-    {
-        $proxyClass = 'Doctrine\ORM\Proxy\Proxy';
-        if ($source instanceof $proxyClass) {
-            $source->__load();
-        }
+        throw new InvalidArgumentException('The target must either be an object or a string that represents a valid class name.');
     }
 }
