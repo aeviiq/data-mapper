@@ -1,7 +1,7 @@
 {
     "name": "aeviiq/data-mapper",
     "type": "library",
-    "description": "Data Mapper Component",
+    "description": "A library that dynamically maps properties between objects.",
     "keywords": [
         "data-mapper",
         "mapper"
