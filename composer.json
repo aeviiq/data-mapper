@@ -26,9 +26,7 @@
     },
     "require": {
         "php": "^7.2",
-        "ext-SimpleXML": "*",
-        "aeviiq/collection": "dev-master",
-        "symfony/options-resolver": "^3.4|^4.3",
-        "symfony/property-access": "3.4|^4.3"
+        "aeviiq/collection": "^3.2",
+        "aeviiq/safe-cast": "^0.1"
     }
 }
