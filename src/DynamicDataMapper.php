@@ -24,7 +24,7 @@ final class DynamicDataMapper
      * @throws LogicException When the target does not have the same properties as the source.
      * @throws RuntimeException When any reflection exception occurs while mapping.
      */
-    public static function map(object $source, string $target, bool $strict = true): object
+    public static function map(object $source, $target, bool $strict = true): object
     {
         try {
             $sourceReflection = new \ReflectionObject($source);
