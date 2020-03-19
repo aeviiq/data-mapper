@@ -86,6 +86,9 @@ final class DynamicDataMapper
     private static function cast(\ReflectionType $reflectionType, $value)
     {
         switch (true) {
+            case (\is_a((string)$reflectionType, 'MyCLabs\Enum\Enum', true) && \is_scalar($value)):
+                $enum = (string)$reflectionType;
+                return new $enum($value);
             case (null === $value):
             case (\is_resource($value)):
             case (\is_array($value)):
